@@ -1,7 +1,6 @@
 import {
   Box,
   VStack,
-  HStack,
   Text,
   Input,
   Button,
@@ -9,17 +8,15 @@ import {
   Icon,
   Avatar,
   InputGroup,
-  InputRightElement,useToast
+  InputRightElement,
+  useToast
 } from "@chakra-ui/react";
 import { FiSend, FiInfo, FiMessageCircle } from "react-icons/fi";
 import UsersList from "./UsersList";
-import { useState, useEffect,useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
-const ChatArea = ({selectedGroup,socket}) => {
-
-  console.log(selectedGroup?._id);
-
+const ChatArea = ({ selectedGroup, socket }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [connectedUsers, setConnectedUsers] = useState([]);
@@ -29,111 +26,143 @@ const ChatArea = ({selectedGroup,socket}) => {
   const typingTimeoutRef = useRef(null);
   const toast = useToast();
 
-  const currentUser = JSON.parse(localStorage.getItem("user") || {});
-  useEffect(()=>{
-    if(selectedGroup && socket){
-      //fetch messages
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+  useEffect(() => {
+    if (selectedGroup && socket) {
       fetchMessages();
 
-      socket.emit("join room", selectedGroup?._id);
-      socket.on("message receive", (newMessage) => {
+      socket.emit("join room", selectedGroup._id);
+
+      // Message handlers
+      const messageHandler = (newMessage) => {
         setMessages((prev) => [...prev, newMessage]);
-      });
+      };
 
-      socket.on("users in room", (users) => {
+      // User handlers
+      const usersInRoomHandler = (users) => {
         setConnectedUsers(users);
-      });
+      };
 
-      socket.on("user joined", (user) => {
+      const userJoinedHandler = (user) => {
         setConnectedUsers((prev) => [...prev, user]);
-      });
+      };
 
-      socket.on("user left", (userId) => {
+      const userLeftHandler = (userId) => {
         setConnectedUsers((prev) =>
-          prev.filter((user) => user?._id !== userId)
+          prev.filter((user) => user._id !== userId)
         );
-      });
+      };
 
-      socket.on("notification", (notification) => {
+      // Notification handler
+      const notificationHandler = (notification) => {
         toast({
-          title:
-            notification?.type === "USER_JOINED" ? "New User" : "Notification",
+          title: notification?.type === "USER_JOINED" ? "New User" : "Notification",
           description: notification.message,
           status: "info",
           duration: 3000,
           isClosable: true,
           position: "top-right",
         });
-      });
+      };
 
-      socket.on("user typing", ({ username }) => {
-        setTypingUsers((prev) => new Set(prev).add(username));
-      });
+      // Typing handlers
+      const userTypingHandler = ({ username }) => {
+        if (username !== currentUser.user?.username) {
+          setTypingUsers((prev) => new Set(prev).add(username));
+        }
+      };
 
-      socket.on("user stop typing", ({ username }) => {
+      const userStopTypingHandler = ({ username }) => {
         setTypingUsers((prev) => {
           const newSet = new Set(prev);
           newSet.delete(username);
           return newSet;
         });
-      })
-      //clean up 
+      };
+
+      // Add event listeners
+      socket.on("message received", messageHandler);
+      socket.on("users in room", usersInRoomHandler);
+      socket.on("user joined", userJoinedHandler);
+      socket.on("user left", userLeftHandler);
+      socket.on("notification", notificationHandler);
+      socket.on("user typing", userTypingHandler);
+      socket.on("user stop typing", userStopTypingHandler);
+
+      // Cleanup
       return () => {
-        socket.emit("leave room", selectedGroup?._id);
-        socket.off("message received");
-        socket.off("users in room");
-        socket.off("user joined");
-        socket.off("user left");
-        socket.off("notification");
-        socket.off("user typing");
-        socket.off("user stop typing");
+        socket.emit("leave room", selectedGroup._id);
+        socket.off("message received", messageHandler);
+        socket.off("users in room", usersInRoomHandler);
+        socket.off("user joined", userJoinedHandler);
+        socket.off("user left", userLeftHandler);
+        socket.off("notification", notificationHandler);
+        socket.off("user typing", userTypingHandler);
+        socket.off("user stop typing", userStopTypingHandler);
+        
+        // Clear typing states
+        setIsTyping(false);
+        setTypingUsers(new Set());
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
       };
     }
-  },[selectedGroup,socket,toast]);
-  
+  }, [selectedGroup, socket, toast, currentUser.user?.username]);
 
-
-  //fetch messages
-
-  const fetchMessages=async()=>{
-    const currentUser=JSON.parse(localStorage.getItem("user") || {});
-    const token=currentUser.user?.token;
-    try{
-      const {data}=await axios.get(`https://chatapp-n1dh.onrender.com/api/messages/${selectedGroup?._id}`,{
-        headers:{Authorization:`Bearer ${token}`},
-      });
-      console.log(data);
+  const fetchMessages = async () => {
+    const token = currentUser.user?.token;
+    try {
+      const { data } = await axios.get(
+        `https://chatapp-n1dh.onrender.com/api/messages/${selectedGroup._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setMessages(data);
-    }catch(error){
-      console.log(error);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
     }
-  }
+  };
 
-
-  //send message
   const sendMessage = async () => {
-    if (!newMessage.trim()) {
-      return;
-    }
+    if (!newMessage.trim()) return;
+
     try {
       const token = currentUser.user?.token;
       const { data } = await axios.post(
         "https://chatapp-n1dh.onrender.com/api/messages",
         {
           content: newMessage,
-          groupId: selectedGroup?._id,
+          groupId: selectedGroup._id,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+
+      // Emit message and stop typing
       socket.emit("new message", {
         ...data,
-        groupId: selectedGroup?._id,
+        groupId: selectedGroup._id,
       });
 
-      setMessages([...messages, data]);
+      socket.emit("stop typing", {
+        groupId: selectedGroup._id,
+        username: currentUser.user.username,
+      });
+
+      // Clear states
+      setMessages((prev) => [...prev, data]);
       setNewMessage("");
+      setIsTyping(false);
+      setTypingUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(currentUser.user.username);
+        return newSet;
+      });
+
     } catch (error) {
       toast({
         title: "Error sending message",
@@ -144,137 +173,73 @@ const ChatArea = ({selectedGroup,socket}) => {
     }
   };
 
-  //handleTyping
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
+
     if (!isTyping && selectedGroup) {
       setIsTyping(true);
       socket.emit("typing", {
-        groupId: selectedGroup?._id,
-        username: currentUser.user.username,//point
+        groupId: selectedGroup._id,
+        username: currentUser.user.username,
       });
     }
-    //clear existing timeout
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    //set new timeout
+
     typingTimeoutRef.current = setTimeout(() => {
       if (selectedGroup) {
         socket.emit("stop typing", {
-          groupId: selectedGroup?._id,
+          groupId: selectedGroup._id,
+          username: currentUser.user.username,
         });
       }
       setIsTyping(false);
     }, 2000);
   };
 
-    //format time
-    const formatTime = (date) => {
-      return new Date(date).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    };
-    
-
-     //render typing indicator
-  const renderTypingIndicator = () => {
-    if (typingUsers.size === 0) return null;
-    const typingUsersArray = Array.from(typingUsers);
-
-    return typingUsersArray?.map((username) => (
-      <Box
-        key={username}
-        alignSelf={
-          username === currentUser.user?.username ? "flex-start" : "flex-end"
-        }
-        maxW="70%"
-      >
-        <Flex
-          align="center"
-          bg={username === currentUser.user?.username ? "blue.50" : "gray.50"}
-          p={2}
-          borderRadius="lg"
-          gap={2}
-        >
-          {/* current user (You) -left side */}
-          {username === currentUser.user?.username ? (
-            <>
-              <Avatar size="xs" name={username} />
-              <Flex align="center" gap={1}>
-                <Text fontSize="sm" color="gray.500" fontStyle="italic">
-                  You are typing
-                </Text>
-                <Flex gap={1}>
-                  {[1, 2, 3].map((dot) => (
-                    <Box
-                      key={dot}
-                      w="3px"
-                      h="3px"
-                      borderRadius="full"
-                      bg="gray.500"
-                    />
-                  ))}
-                </Flex>
-              </Flex>
-            </>
-          ) : (
-            <>
-              <Flex align="center" gap={1}>
-                <Text fontSize="sm" color="gray.500" fontStyle="italic">
-                  {username} is typing
-                </Text>
-                <Flex gap={1}>
-                  {[1, 2, 3].map((dot) => (
-                    <Box
-                      key={dot}
-                      w="3px"
-                      h="3px"
-                      borderRadius="full"
-                      bg="gray.500"
-                    />
-                  ))}
-                </Flex>
-              </Flex>
-              <Avatar size="xs" name={username} />
-            </>
-          )}
-        </Flex>
-      </Box>
-    ));
+  const formatTime = (date) => {
+    return new Date(date).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
-  // Sample data for demonstration
-  const sampleMessages = [
-    {
-      id: 1,
-      content: "Hey team! Just pushed the new updates to staging.",
-      sender: { username: "Sarah Chen" },
-      createdAt: "10:30 AM",
-      isCurrentUser: false,
-    },
-    {
-      id: 2,
-      content: "Great work! The new features look amazing 🚀",
-      sender: { username: "Alex Thompson" },
-      createdAt: "10:31 AM",
-      isCurrentUser: false,
-    },
-    {
-      id: 3,
-      content: "Thanks! Let's review it in our next standup.",
-      sender: { username: "You" },
-      createdAt: "10:32 AM",
-      isCurrentUser: true,
-    },
-  ];
 
-  const sampleUsers = [
-    { id: 1, username: "Sarah Chen", isOnline: true },
-    { id: 2, username: "Alex Thompson", isOnline: true },
-    { id: 3, username: "John Doe", isOnline: false },
-  ];
+  const renderTypingIndicator = () => {
+    const typingUsersArray = Array.from(typingUsers);
+    if (typingUsersArray.length === 0) return null;
 
+    return typingUsersArray.map((username) => {
+      if (username === currentUser.user?.username) return null;
+      
+      return (
+        <Box key={username} alignSelf="flex-start" maxW="70%">
+          <Flex align="center" bg="gray.50" p={2} borderRadius="lg" gap={2}>
+            <Avatar size="xs" name={username} />
+            <Flex align="center" gap={1}>
+              <Text fontSize="sm" color="gray.500" fontStyle="italic">
+                {username} is typing
+              </Text>
+              <Flex gap={1}>
+                {[1, 2, 3].map((dot) => (
+                  <Box
+                    key={dot}
+                    w="3px"
+                    h="3px"
+                    borderRadius="full"
+                    bg="gray.500"
+                  />
+                ))}
+              </Flex>
+            </Flex>
+          </Flex>
+        </Box>
+      );
+    });
+  };
+
+  // Rest of your render code remains the same
   return (
     <Flex h="100%" position="relative">
       <Box
@@ -284,7 +249,6 @@ const ChatArea = ({selectedGroup,socket}) => {
         bg="gray.50"
         maxW={`calc(100% - 260px)`}
       >
-        {/* Chat Header */}
         {selectedGroup ? (
           <>
             <Flex
@@ -296,20 +260,7 @@ const ChatArea = ({selectedGroup,socket}) => {
               align="center"
               boxShadow="sm"
             >
-              <Button
-                display={{ base: "inline-flex", md: "none" }}
-                variant="ghost"
-                mr={2}
-                onClick={() => setSelectedGroup(null)}
-              >
-                ←
-              </Button>
-              <Icon
-                as={FiMessageCircle}
-                fontSize="24px"
-                color="blue.500"
-                mr={3}
-              />
+              <Icon as={FiMessageCircle} fontSize="24px" color="blue.500" mr={3} />
               <Box flex="1">
                 <Text fontSize="lg" fontWeight="bold" color="gray.800">
                   {selectedGroup.name}
@@ -327,7 +278,6 @@ const ChatArea = ({selectedGroup,socket}) => {
               />
             </Flex>
 
-            {/* Messages Area */}
             <VStack
               flex="1"
               overflowY="auto"
@@ -380,8 +330,7 @@ const ChatArea = ({selectedGroup,socket}) => {
                       ) : (
                         <>
                           <Text fontSize="xs" color="gray.500">
-                            {message.sender.username} •{" "}
-                            {formatTime(message.createdAt)}
+                            {message.sender.username} • {formatTime(message.createdAt)}
                           </Text>
                           <Avatar size="xs" name={message.sender.username} />
                         </>
@@ -390,12 +339,12 @@ const ChatArea = ({selectedGroup,socket}) => {
 
                     <Box
                       bg={
-                        message?.sender._id === currentUser.user?._id
+                        message.sender._id === currentUser.user?._id
                           ? "blue.500"
                           : "white"
                       }
                       color={
-                        message?.sender._id === currentUser.user?._id
+                        message.sender._id === currentUser.user?._id
                           ? "white"
                           : "gray.800"
                       }
@@ -412,7 +361,6 @@ const ChatArea = ({selectedGroup,socket}) => {
               <div ref={messagesEndRef} />
             </VStack>
 
-            {/* Message Input */}
             <Box
               p={4}
               bg="white"
@@ -458,33 +406,25 @@ const ChatArea = ({selectedGroup,socket}) => {
             </Box>
           </>
         ) : (
-          <>
-            <Flex
-              h="100%"
-              direction="column"
-              align="center"
-              justify="center"
-              p={8}
-              textAlign="center"
-            >
-              <Icon
-                as={FiMessageCircle}
-                fontSize="64px"
-                color="gray.300"
-                mb={4}
-              />
-              <Text fontSize="xl" fontWeight="medium" color="gray.500" mb={2}>
-                Welcome to the Chat
-              </Text>
-              <Text color="gray.500" mb={2}>
-                Select a group from the sidebar to start chatting
-              </Text>
-            </Flex>
-          </>
+          <Flex
+            h="100%"
+            direction="column"
+            align="center"
+            justify="center"
+            p={8}
+            textAlign="center"
+          >
+            <Icon as={FiMessageCircle} fontSize="64px" color="gray.300" mb={4} />
+            <Text fontSize="xl" fontWeight="medium" color="gray.500" mb={2}>
+              Welcome to the Chat
+            </Text>
+            <Text color="gray.500" mb={2}>
+              Select a group from the sidebar to start chatting
+            </Text>
+          </Flex>
         )}
       </Box>
 
-      {/* UsersList with fixed width */}
       <Box
         width="260px"
         position="sticky"
