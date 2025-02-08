@@ -99,7 +99,7 @@ const ChatArea = ({selectedGroup,socket}) => {
     const currentUser=JSON.parse(localStorage.getItem("user") || {});
     const token=currentUser.user?.token;
     try{
-      const {data}=await axios.get(`http://localhost:5000/api/messages/${selectedGroup?._id}`,{
+      const {data}=await axios.get(`https://chatapp-n1dh.onrender.com/api/messages/${selectedGroup?._id}`,{
         headers:{Authorization:`Bearer ${token}`},
       });
       console.log(data);
@@ -118,7 +118,7 @@ const ChatArea = ({selectedGroup,socket}) => {
     try {
       const token = currentUser.user?.token;
       const { data } = await axios.post(
-        "http://localhost:5000/api/messages",
+        "https://chatapp-n1dh.onrender.com/api/messages",
         {
           content: newMessage,
           groupId: selectedGroup?._id,

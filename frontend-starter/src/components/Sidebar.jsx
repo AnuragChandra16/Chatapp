@@ -55,7 +55,7 @@ const Sidebar = ({setSelectedGroup}) => {
     const userInfo = JSON.parse(localStorage.getItem("user") || {});
     const token = userInfo.user?.token;
     console.log(token);
-    const { data } = await axios.get('http://localhost:5000/api/groups', {
+    const { data } = await axios.get('https://chatapp-n1dh.onrender.com/api/groups', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -84,7 +84,7 @@ const Sidebar = ({setSelectedGroup}) => {
       const userInfo = JSON.parse(localStorage.getItem("user") || {});
       const token = userInfo.user?.token;
       await axios.post(
-        "http://localhost:5000/api/groups",
+        "https://chatapp-n1dh.onrender.com/api/groups",
         {
           name: newGroupName,
           description: newGroupDescription,
@@ -127,7 +127,7 @@ const Sidebar = ({setSelectedGroup}) => {
       const token = userInfo.user?.token;
   
       const res = await axios.post(
-        `http://localhost:5000/api/groups/${groupId}/join`,
+        `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/join`,
         {},
         {
           headers: {
@@ -178,7 +178,7 @@ const Sidebar = ({setSelectedGroup}) => {
       const userInfo = JSON.parse(localStorage.getItem("user") || {});
       const token = userInfo.user?.token;
       await axios.post(
-        `http://localhost:5000/api/groups/${groupId}/leave`,
+        `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/leave`,
         {},
         {
           headers: {

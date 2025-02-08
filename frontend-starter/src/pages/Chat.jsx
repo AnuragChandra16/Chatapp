@@ -4,7 +4,7 @@ import Sidebar from "../components/Sidebar";
 import ChatArea from "../components/ChatArea";
 import io from "socket.io-client";
 
-const ENDPOINT = "http://localhost:5000";
+const ENDPOINT = "https://chatapp-n1dh.onrender.com";
 
 const Chat = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -20,6 +20,7 @@ const Chat = () => {
     const userInfo = JSON.parse(storedUser);
     const newSocket = io(ENDPOINT, {
       auth: { user: userInfo?.user }, // Ensure user exists
+      transports: ["websocket", "polling"],
     });
 
     setSocket(newSocket);

@@ -26,7 +26,7 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const {data} = await axios.post("http://localhost:5000/api/users/register", {
+      const {data} = await axios.post("https://chatapp-n1dh.onrender.com/api/users/register", {
         email,password,username}
       );
       console.log(data.user);
