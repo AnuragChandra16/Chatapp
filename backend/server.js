@@ -15,7 +15,7 @@ const app=express();
 const server=http.createServer(app);
 const io=socketio(server,{
     cors:{
-        origin:['https://chatapp-n1dh.onrender.com','http://localhost:5173'],
+        origin:['https://chatapp-m1ac7jpxr-anuragchandra16s-projects.vercel.app/','http://localhost:5173','*'],
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
@@ -25,6 +25,7 @@ const io=socketio(server,{
 });
 //middlewares
 app.use(cors());
+
 app.use(express.json());
 
 //connect to db

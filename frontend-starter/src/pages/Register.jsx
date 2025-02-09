@@ -6,72 +6,46 @@ import {
   Input,
   VStack,
   Text,
-  useToast
+  useToast,
 } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
 import axios from "axios";
+import { useState } from "react";
+
+import { Link, useNavigate } from "react-router-dom";
+
 
 const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username,setUsername]=useState("");
-  const [loading,setLoading]=useState("");
-  const toast=useToast();
-  const navigate=useNavigate();
-  //handle submit (login)
-//real
-//   const handleSubmit=async(e)=>{
-//     e.preventDefault();
-//     setLoading(true);
-//     try {
-//       const {data} = await axios.post("https://chatapp-n1dh.onrender.com/api/users/register", {
-//         email,password,username}
-//       );
-//       console.log(data.user);
-//       navigate("/login");
-//   }catch(error){
-//     toast({
-//       title: "Error",
-//       description:error.response.data.message||"An error occured",
-//       status:"error",
-//       duration:5000,
-//       isClosable:true,
-//     });
-//     setLoading(false);
-//   }
-// };
+  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+  //Navigate
+  const navigate = useNavigate();
+  //main logic for login
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data } = await axios.post(`https://chatapp-n1dh.onrender.com/api/users/register`, {
+        email,
+        password,
+        username,
+      });
+      console.log(data.user);
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-
-  try {
-    const { data } = await axios.post(
-      "https://chatapp-n1dh.onrender.com/api/users/register",
-      { email, password, username }
-    );
-
-    console.log(data.user);
-
-    // Store user and set maxi = 0 for new users
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("maxi", "0");  // Ensure maxi is 0 on registration
-
-    navigate("/login");
-  } catch (error) {
-    toast({
-      title: "Error",
-      description: error.response?.data?.message || "An error occurred",
-      status: "error",
-      duration: 5000,
-      isClosable: true,
-    });
+      navigate("/login");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.response.data.message || "An error occurred",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
     setLoading(false);
-  }
-};
-
+  };
   return (
     <Box
       w="100%"
@@ -143,9 +117,8 @@ const handleSubmit = async (e) => {
                 Username
               </FormLabel>
               <Input
-              value={username}
-              onChange={(e)=>setUsername(e.target.value)}
-              
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 type="text"
                 size="lg"
                 bg="gray.50"
@@ -161,8 +134,8 @@ const handleSubmit = async (e) => {
                 Email
               </FormLabel>
               <Input
-              value={email}
-              onChange={(e)=>setEmail(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 type="email"
                 size="lg"
                 bg="gray.50"
@@ -178,8 +151,8 @@ const handleSubmit = async (e) => {
                 Password
               </FormLabel>
               <Input
-              value={password}
-              onChange={(e)=>setPassword(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 type="password"
                 size="lg"
                 bg="gray.50"
@@ -191,8 +164,8 @@ const handleSubmit = async (e) => {
             </FormControl>
 
             <Button
-            onClick={handleSubmit}
-            isLoading={loading}
+              onClick={handleSubmit}
+              isLoading={loading}
               colorScheme="purple"
               width="100%"
               transform="auto"

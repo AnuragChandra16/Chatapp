@@ -1,4 +1,5 @@
 import {
+
   Box,
   VStack,
   Text,
@@ -197,42 +198,94 @@ const Sidebar = ({setSelectedGroup}) => {
   //     });
   //   }
   // };
+  // const handleJoinGroup = async (groupId) => {
+  //   console.log("Sending Request:", { groupId });
+  //   try {
+  //     const userInfo = JSON.parse(localStorage.getItem("user") || "{}");
+  //     const token = userInfo.user?.token;
+  //     console.log(token);
+  //     await axios.post(
+  //       `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/join`,
+  //       {},
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+  //     await fetchGroups();
+  //     setSelectedGroup(groups.find((g)=>g?._id===groupId));
+  //     // Update userGroups state immediately
+  //     // setUserGroups((prev) => [...prev, groupId]);
+  //     // console.log(groupId);
+  //     // // Set the selected group directly
+  //     // if (setSelectedGroup) {
+  //     //   setSelectedGroup(joinedGroup);
+  //     // }
+  
+  //     toast({
+  //       title: "Joined group successfully",
+  //       status: "success",
+  //       duration: 3000,
+  //       isClosable: true,
+  //     });
+  
+  //     // // Fetch updated groups
+  //     // fetchGroups();
+  //   } catch (error) {
+  //     console.error("Error Joining Group:", error);
+  
+  //     toast({
+  //       title: "Error Joining Group",
+  //       status: "error",
+  //       duration: 3000,
+  //       isClosable: true,
+  //       description: error?.response?.data?.message || "An error occurred",
+  //     });
+  //   }
+  // };
+
   const handleJoinGroup = async (groupId) => {
+    console.log("Sending Request:", { groupId });
+    
     try {
-      if (!isAdmin && maxi === 1) {
-        toast({
-          title: "You can only join your first group. You cannot join another.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
+      // Verify we have valid groupId
+      if (!groupId) {
+        throw new Error("Invalid group ID");
       }
   
+      // Get and verify user info
       const userInfo = JSON.parse(localStorage.getItem("user") || "{}");
       const token = userInfo.user?.token;
+      
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
   
+      console.log("Using token:", token);
+  
+      // Make the join request
       const { data } = await axios.post(
         `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/join`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        {}, // Empty payload is fine if server doesn't need additional data
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        }
       );
   
-      console.log("API Response:", data);
-  
-      setUserGroups((prev) => [...prev, groupId]);
-  
-      if (setSelectedGroup && data.group) {
-        setSelectedGroup(data.group);
-      } else {
-        console.error("setSelectedGroup is undefined or group data missing");
+      // Fetch updated groups and update selected group
+      await fetchGroups();
+      
+      // Make sure we find the group before setting it
+      const joinedGroup = groups.find((g) => g?._id === groupId);
+      if (!joinedGroup) {
+        throw new Error("Could not find joined group");
       }
-  
-      // ✅ Normal users get restricted
-      if (!isAdmin) {
-        setMaxi(1);
-        localStorage.setItem("maxi", "1");
-      }
+      
+      setSelectedGroup(joinedGroup);
   
       toast({
         title: "Joined group successfully",
@@ -240,15 +293,20 @@ const Sidebar = ({setSelectedGroup}) => {
         duration: 3000,
         isClosable: true,
       });
+  
     } catch (error) {
-      console.error("Error Joining Group:", error);
+      console.error("Error Details:", {
+        message: error?.response?.data?.message || error.message,
+        status: error?.response?.status,
+        data: error?.response?.data
+      });
   
       toast({
         title: "Error Joining Group",
         status: "error",
         duration: 3000,
         isClosable: true,
-        description: error?.response?.data?.message || "An error occurred",
+        description: error?.response?.data?.message || error.message || "An error occurred",
       });
     }
   };
@@ -414,28 +472,31 @@ const Sidebar = ({setSelectedGroup}) => {
                   </Text>
                 </Box>
                 <Button
-  size="sm"
-  colorScheme={userGroups.includes(group?._id) ? "red" : "blue"}
-  variant={userGroups.includes(group?._id) ? "ghost" : "solid"}
-  ml={3}
-  onClick={() => {
-    userGroups.includes(group?._id)
-      ? handleLeaveGroup(group?._id)
-      : handleJoinGroup(group?._id);
-  }}
-  isDisabled={!isAdmin && maxi === 1 && !userGroups.includes(group?._id)}
-  _hover={{
-    transform: userGroups.includes(group?._id) ? "scale(1.05)" : "none",
-    bg: userGroups.includes(group?._id) ? "red.50" : "blue.600",
-  }}
-  transition="all 0.2s"
->
-  {userGroups.includes(group?._id) ? (
-    <Text fontSize="sm" fontWeight="medium">Leave</Text>
-  ) : (
-    "Join"
-  )}
-</Button>
+                  size="sm"
+                  colorScheme={
+                    userGroups?.includes(group?._id) ? "red" : "blue"
+                  }
+                  variant={userGroups?.includes(group?._id) ? "ghost" : "solid"}
+                  ml={3}
+                  onClick={() => {
+                    userGroups?.includes(group?._id)
+                      ?handleLeaveGroup(group?._id)
+                      : handleJoinGroup(group?._id);
+                  }}
+                  _hover={{
+                    transform: group.isJoined ? "scale(1.05)" : "none",
+                    bg: group.isJoined ? "red.50" : "blue.600",
+                  }}
+                  transition="all 0.2s"
+                >
+                  {userGroups.includes(group?._id) ? (
+                    <Text fontSize="sm" fontWeight="medium">
+                      Leave
+                    </Text>
+                  ) : (
+                    "Join"
+                  )}
+                </Button>
 
 
 
@@ -516,3 +577,5 @@ const Sidebar = ({setSelectedGroup}) => {
 };
 
 export default Sidebar;
+
+

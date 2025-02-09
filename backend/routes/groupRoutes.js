@@ -79,109 +79,216 @@
 //     res.status(400).json({ message: error.message });
 //   }
 // });
+//real (above)
 
 const express = require("express");
 const Group = require("../models/GroupModel");
-const User = require("../models/UserModel");
 const { protect, isAdmin } = require("../middleware/authMiddleware");
+const { trusted } = require("mongoose");
 
 const groupRouter = express.Router();
 
-/**
- * ✅ Create a new group (Only Admins)
- * 🔹 Endpoint: POST /api/groups/
- */
+//Create a new group
 groupRouter.post("/", protect, isAdmin, async (req, res) => {
   try {
-    const { name, description, allowedUsers } = req.body;
-
+    const { name, description } = req.body;
     const group = await Group.create({
       name,
       description,
       admin: req.user._id,
-      members: [req.user._id], // Auto-add admin as the first member
-      allowedUsers, // List of users who can join
+      members: [req.user._id],
     });
-
     const populatedGroup = await Group.findById(group._id)
       .populate("admin", "username email")
       .populate("members", "username email");
-
     res.status(201).json({ populatedGroup });
   } catch (error) {
+    console.log(error);
+
     res.status(400).json({ message: error.message });
   }
 });
 
-/**
- * ✅ Get all groups (List all groups)
- * 🔹 Endpoint: GET /api/groups/
- */
+//get all groups
 groupRouter.get("/", protect, async (req, res) => {
   try {
     const groups = await Group.find()
       .populate("admin", "username email")
       .populate("members", "username email");
-
     res.json(groups);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-/**
- * ✅ Join a group (Only Allowed Users)
- * 🔹 Endpoint: POST /api/groups/:groupId/join
- */
+//Join group
+// groupRouter.post("/:groupId/join", protect, async (req, res) => {
+//   try {
+//     const group = await Group.findById(req.params.groupId);
+
+//     if (!group) {
+//       return res.status(404).json({ message: "Group not found" });
+//     }
+//     if (group.members.includes(req.user._id)) {
+//       return res.status(400).json({
+//         message: "Already a member of this group",
+//       });
+//     }
+//     group.members.push(req.user._id);
+//     await group.save();
+//     res.json({ message: "Successfully joined this group" });
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// });
 groupRouter.post("/:groupId/join", protect, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
-    const user = await User.findById(req.user._id);
 
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    // ✅ Restrict joining only to users in `allowedGroups`
-    if (!user.allowedGroups.includes(group._id)) {
-      return res.status(403).json({ message: "You are not allowed to join this group" });
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
     }
-
-    // ✅ Prevent duplicate joins
     if (group.members.includes(req.user._id)) {
-      return res.status(400).json({ message: "Already a member of this group" });
+      return res.status(400).json({
+        message: "Already a member of this group",
+      });
     }
-
     group.members.push(req.user._id);
     await group.save();
-
-    res.json({ message: "Successfully joined the group" });
+    res.json({ message: "Successfully joined this group" });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-/**
- * ✅ Leave a group
- * 🔹 Endpoint: POST /api/groups/:groupId/leave
- */
+
+
+//leave a group
 groupRouter.post("/:groupId/leave", protect, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
-
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
     if (!group.members.includes(req.user._id)) {
       return res.status(400).json({ message: "Not a member of this group" });
     }
-
-    // ✅ Remove user from group members
-    group.members = group.members.filter(memberId => !memberId.equals(req.user._id));
+    group.members = group.members.filter((memberId) => {
+      return memberId.toString() !== req.user._id.toString();
+    });
     await group.save();
-
     res.json({ message: "Successfully left the group" });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
+
+
+
+
+
+// const express = require("express");
+// const Group = require("../models/GroupModel");
+// const User = require("../models/UserModel");
+// const { protect, isAdmin } = require("../middleware/authMiddleware");
+
+// const groupRouter = express.Router();
+
+// /**
+//  * ✅ Create a new group (Only Admins)
+//  * 🔹 Endpoint: POST /api/groups/
+//  */
+// groupRouter.post("/", protect, isAdmin, async (req, res) => {
+//   try {
+//     const { name, description, allowedUsers } = req.body;
+
+//     const group = await Group.create({
+//       name,
+//       description,
+//       admin: req.user._id,
+//       members: [req.user._id], // Auto-add admin as the first member
+//       allowedUsers, // List of users who can join
+//     });
+
+//     const populatedGroup = await Group.findById(group._id)
+//       .populate("admin", "username email")
+//       .populate("members", "username email");
+
+//     res.status(201).json({ populatedGroup });
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// });
+
+// /**
+//  * ✅ Get all groups (List all groups)
+//  * 🔹 Endpoint: GET /api/groups/
+//  */
+// groupRouter.get("/", protect, async (req, res) => {
+//   try {
+//     const groups = await Group.find()
+//       .populate("admin", "username email")
+//       .populate("members", "username email");
+
+//     res.json(groups);
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// });
+
+// /**
+//  * ✅ Join a group (Only Allowed Users)
+//  * 🔹 Endpoint: POST /api/groups/:groupId/join
+//  */
+// groupRouter.post("/:groupId/join", protect, async (req, res) => {
+//   try {
+//     const group = await Group.findById(req.params.groupId);
+//     const user = await User.findById(req.user._id);
+
+//     if (!group) return res.status(404).json({ message: "Group not found" });
+
+//     // ✅ Restrict joining only to users in `allowedGroups`
+//     if (!user.allowedGroups.includes(group._id)) {
+//       return res.status(403).json({ message: "You are not allowed to join this group" });
+//     }
+
+//     // ✅ Prevent duplicate joins
+//     if (group.members.includes(req.user._id)) {
+//       return res.status(400).json({ message: "Already a member of this group" });
+//     }
+
+//     group.members.push(req.user._id);
+//     await group.save();
+
+//     res.json({ message: "Successfully joined the group" });
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// });
+
+// /**
+//  * ✅ Leave a group
+//  * 🔹 Endpoint: POST /api/groups/:groupId/leave
+//  */
+// groupRouter.post("/:groupId/leave", protect, async (req, res) => {
+//   try {
+//     const group = await Group.findById(req.params.groupId);
+
+//     if (!group) return res.status(404).json({ message: "Group not found" });
+
+//     if (!group.members.includes(req.user._id)) {
+//       return res.status(400).json({ message: "Not a member of this group" });
+//     }
+
+//     // ✅ Remove user from group members
+//     group.members = group.members.filter(memberId => !memberId.equals(req.user._id));
+//     await group.save();
+
+//     res.json({ message: "Successfully left the group" });
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// });
 
 module.exports = groupRouter;
 
@@ -261,7 +368,7 @@ module.exports = groupRouter;
 //   }
 // });
 
-module.exports = groupRouter;
+//module.exports = groupRouter;
 
 
 
