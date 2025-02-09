@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 //real
-schema
+
 const groupSchema = new mongoose.Schema(
   {
     name: {
