@@ -35,12 +35,36 @@ const Sidebar = ({setSelectedGroup}) => {
   const toast = useToast();
   const [isAdmin,setIsAdmin] = useState(false);
   const navigate = useNavigate();
+  const [groupStatus, setGroupStatus] = useState(0); // 1 if joined, 0 if left
+  const [maxi, setMaxi] = useState(() => {
+    return parseInt(localStorage.getItem("maxi")) || 0;
+  });
+  
 
+//real
+  // useEffect(() => {
+    
+  //   checkAdminStatus();
+  //   fetchGroups();
+  // }, []);
   useEffect(() => {
+    const handleStorageChange = () => {
+      const updatedMaxi = localStorage.getItem("maxi");
+      setMaxi(updatedMaxi ? parseInt(updatedMaxi) : 0);
+    };
+  
+    // Listen for changes in localStorage
+    window.addEventListener("storage", handleStorageChange);
+  
+    // Call necessary functions
     checkAdminStatus();
     fetchGroups();
+  
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
-
+  
   //Check if login user is an admin
   const checkAdminStatus = () => {
     const userInfo = JSON.parse(localStorage.getItem("user") || {});
@@ -118,39 +142,96 @@ const Sidebar = ({setSelectedGroup}) => {
   //logout
   const handleLogout = () => {
     localStorage.removeItem("user");
+  // localStorage.setItem("maxi", "0"); 
+  // setMaxi(0);
     navigate("/login");
   };
   //join group
+  // const handleJoinGroup = async (groupId) => {
+  //   try {
+  //     const userInfo = JSON.parse(localStorage.getItem("user") || "{}");
+  //     const token = userInfo.user?.token;
+  
+  //     const res = await axios.post(
+  //       `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/join`,
+  //       {},
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+  
+  //     console.log("API Response:", res);
+  
+  //     // Wait for groups to update
+  //     await fetchGroups();
+  
+  //     console.log("Groups after fetch:", groups);
+  //     groups.forEach((g) => console.log("Group ID:", g?._id));
+  
+  //     const selectedGroup = groups.find((g) => g?._id === groupId);
+  //     console.log("Selected Group:", selectedGroup);
+  
+  //     if (setSelectedGroup) {
+  //       setSelectedGroup(selectedGroup);
+  //     } else {
+  //       console.error("setSelectedGroup is undefined");
+  //     }
+  
+  //     toast({
+  //       title: "Joined group successfully",
+  //       status: "success",
+  //       duration: 3000,
+  //       isClosable: true,
+  //     });
+  //   } catch (error) {
+  //     console.error("Error Joining Group:", error);
+  
+  //     toast({
+  //       title: "Error Joining Group",
+  //       status: "error",
+  //       duration: 3000,
+  //       isClosable: true,
+  //       description: error?.response?.data?.message || "An error occurred",
+  //     });
+  //   }
+  // };
   const handleJoinGroup = async (groupId) => {
     try {
+      if (!isAdmin && maxi === 1) {
+        toast({
+          title: "You can only join your first group. You cannot join another.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+  
       const userInfo = JSON.parse(localStorage.getItem("user") || "{}");
       const token = userInfo.user?.token;
   
-      const res = await axios.post(
+      const { data } = await axios.post(
         `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/join`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
   
-      console.log("API Response:", res);
+      console.log("API Response:", data);
   
-      // Wait for groups to update
-      await fetchGroups();
+      setUserGroups((prev) => [...prev, groupId]);
   
-      console.log("Groups after fetch:", groups);
-      groups.forEach((g) => console.log("Group ID:", g?._id));
-  
-      const selectedGroup = groups.find((g) => g?._id === groupId);
-      console.log("Selected Group:", selectedGroup);
-  
-      if (setSelectedGroup) {
-        setSelectedGroup(selectedGroup);
+      if (setSelectedGroup && data.group) {
+        setSelectedGroup(data.group);
       } else {
-        console.error("setSelectedGroup is undefined");
+        console.error("setSelectedGroup is undefined or group data missing");
+      }
+  
+      // ✅ Normal users get restricted
+      if (!isAdmin) {
+        setMaxi(1);
+        localStorage.setItem("maxi", "1");
       }
   
       toast({
@@ -171,32 +252,78 @@ const Sidebar = ({setSelectedGroup}) => {
       });
     }
   };
-
+  
+  
+  
+  const handleLogin = async (userData) => {
+    localStorage.setItem("user", JSON.stringify(userData)); 
+    localStorage.removeItem("maxi"); // Reset maxi for new user
+    setMaxi(0); 
+    fetchGroups(); // Fetch groups after login
+  };
+  
    //leave group
-   const handleLeaveGroup = async (groupId) => {
+  //  const handleLeaveGroup = async (groupId) => {
+  //   try {
+  //     const userInfo = JSON.parse(localStorage.getItem("user") || {});
+  //     const token = userInfo.user?.token;
+  //     await axios.post(
+  //       `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/leave`,
+  //       {},
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+  //     await fetchGroups();
+  //     setSelectedGroup(null);
+  //     toast({
+  //       title: "Left group successfully",
+  //       status: "success",
+  //       duration: 3000,
+  //       isClosable: true,
+  //     });
+  //   } catch (error) {
+  //     toast({
+  //       title: "Error Joining Group",
+  //       status: "error",
+  //       duration: 3000,
+  //       isClosable: true,
+  //       description: error?.response?.data?.message || "An error occurred",
+  //     });
+  //   }
+  // };
+  
+  const handleLeaveGroup = async (groupId) => {
     try {
-      const userInfo = JSON.parse(localStorage.getItem("user") || {});
+      const userInfo = JSON.parse(localStorage.getItem("user") || "{}");
       const token = userInfo.user?.token;
+  
       await axios.post(
         `https://chatapp-n1dh.onrender.com/api/groups/${groupId}/leave`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      await fetchGroups();
-      setSelectedGroup(null);
+  
+      setUserGroups((prev) => prev.filter((id) => id !== groupId));
+  
       toast({
         title: "Left group successfully",
-        status: "success",
+        status: "warning",
         duration: 3000,
         isClosable: true,
       });
+  
+      // ✅ Normal users still cannot join another group
+      if (!isAdmin) {
+        localStorage.setItem("maxi", "1");
+      }
     } catch (error) {
+      console.error("Error Leaving Group:", error);
+  
       toast({
-        title: "Error Joining Group",
+        title: "Error Leaving Group",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -204,6 +331,7 @@ const Sidebar = ({setSelectedGroup}) => {
       });
     }
   };
+  
   
 
   return (
@@ -290,7 +418,12 @@ const Sidebar = ({setSelectedGroup}) => {
   colorScheme={userGroups.includes(group?._id) ? "red" : "blue"}
   variant={userGroups.includes(group?._id) ? "ghost" : "solid"}
   ml={3}
-  onClick={()=>{userGroups?.includes(group?._id)?handleLeaveGroup(group?._id):handleJoinGroup(group?._id)}}
+  onClick={() => {
+    userGroups.includes(group?._id)
+      ? handleLeaveGroup(group?._id)
+      : handleJoinGroup(group?._id);
+  }}
+  isDisabled={!isAdmin && maxi === 1 && !userGroups.includes(group?._id)}
   _hover={{
     transform: userGroups.includes(group?._id) ? "scale(1.05)" : "none",
     bg: userGroups.includes(group?._id) ? "red.50" : "blue.600",
@@ -303,6 +436,9 @@ const Sidebar = ({setSelectedGroup}) => {
     "Join"
   )}
 </Button>
+
+
+
 
               </Flex>
             </Box>

@@ -21,27 +21,57 @@ const Register = () => {
   const toast=useToast();
   const navigate=useNavigate();
   //handle submit (login)
+//real
+//   const handleSubmit=async(e)=>{
+//     e.preventDefault();
+//     setLoading(true);
+//     try {
+//       const {data} = await axios.post("https://chatapp-n1dh.onrender.com/api/users/register", {
+//         email,password,username}
+//       );
+//       console.log(data.user);
+//       navigate("/login");
+//   }catch(error){
+//     toast({
+//       title: "Error",
+//       description:error.response.data.message||"An error occured",
+//       status:"error",
+//       duration:5000,
+//       isClosable:true,
+//     });
+//     setLoading(false);
+//   }
+// };
 
-  const handleSubmit=async(e)=>{
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const {data} = await axios.post("https://chatapp-n1dh.onrender.com/api/users/register", {
-        email,password,username}
-      );
-      console.log(data.user);
-      navigate("/login");
-  }catch(error){
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    const { data } = await axios.post(
+      "https://chatapp-n1dh.onrender.com/api/users/register",
+      { email, password, username }
+    );
+
+    console.log(data.user);
+
+    // Store user and set maxi = 0 for new users
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("maxi", "0");  // Ensure maxi is 0 on registration
+
+    navigate("/login");
+  } catch (error) {
     toast({
       title: "Error",
-      description:error.response.data.message||"An error occured",
-      status:"error",
-      duration:5000,
-      isClosable:true,
+      description: error.response?.data?.message || "An error occurred",
+      status: "error",
+      duration: 5000,
+      isClosable: true,
     });
     setLoading(false);
   }
 };
+
   return (
     <Box
       w="100%"
